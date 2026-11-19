@@ -2,18 +2,228 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block Dodger</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101214">
+<title>CIELO MAR</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #11141b; }
-  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Read aloud, never shown: the status line screen readers announce. */
-  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  :root { --amber:#ffb347; --turq:#35d0c0; --danger:#e4572e; --cream:#efe2c8; --ink:rgba(16,18,20,.88); }
+  * { box-sizing:border-box; }
+  html,body { width:100%; height:100%; margin:0; overflow:hidden; background:#151a1c; color:var(--cream); font-family:Arial,Helvetica,sans-serif; }
+  button,input { font:inherit; }
+  #game { position:fixed; inset:0; width:100%; height:100%; display:block; outline:0; }
+  .hidden { display:none !important; }
+  #status { position:fixed; left:-200vw; top:0; width:1px; height:1px; overflow:hidden; white-space:nowrap; }
+  #hud { position:fixed; inset:0; pointer-events:none; text-shadow:0 1px 2px #000; }
+  .angular { background:linear-gradient(100deg,rgba(16,18,20,.9),rgba(16,18,20,.62)); border-left:3px solid var(--amber); clip-path:polygon(0 0,calc(100% - 17px) 0,100% 17px,100% 100%,0 100%); }
+  #mission-card { position:absolute; left:24px; top:24px; width:340px; padding:13px 18px 13px 17px; }
+  #mission-kicker,.eyebrow { font-size:10px; letter-spacing:2.5px; color:var(--amber); font-weight:700; }
+  #mission-title { margin-top:5px; font-family:Impact,'Arial Narrow',sans-serif; font-size:24px; letter-spacing:1.8px; font-weight:400; }
+  #mission-objective { margin-top:7px; color:#f4ead8; font-size:13px; line-height:1.35; }
+  #mission-distance { position:absolute; top:15px; right:22px; font:12px monospace; color:#fff2d3; }
+  #wanted-panel { position:absolute; top:25px; right:25px; text-align:right; }
+  #district-name { color:#f2e6d1; font:15px 'Arial Narrow',Arial,sans-serif; font-weight:bold; letter-spacing:3px; }
+  #cash { margin-top:3px; font:28px 'Courier New',monospace; color:#f4e8d2; letter-spacing:-1px; }
+  #wanted-stars { margin-top:7px; font-size:27px; letter-spacing:5px; color:rgba(20,26,27,.7); -webkit-text-stroke:1px #d0bd9b; }
+  #wanted-stars .earned { color:var(--amber); -webkit-text-stroke:0; }
+  #wanted-stars.rising .earned { animation:heat .35s alternate infinite; }
+  @keyframes heat { from { opacity:.45; } to { opacity:1; } }
+  #map-wrap { position:absolute; left:22px; bottom:22px; width:222px; height:222px; filter:drop-shadow(0 5px 9px #0008); }
+  #minimap { width:220px; height:220px; display:block; background:#14272a; border-radius:50%; }
+  #map-caption { position:absolute; left:32px; bottom:10px; color:#d6c8ad; font-size:9px; letter-spacing:2px; background:#12191ac9; padding:4px 8px; }
+  #respect-wrap { position:absolute; left:34px; bottom:252px; width:196px; }
+  #respect-head { display:flex; justify-content:space-between; font:9px monospace; letter-spacing:2px; color:#cfc0a6; margin-bottom:4px; }
+  #respect-head b { color:var(--amber); font-weight:700; }
+  #respect-track { height:5px; background:#3d3b35; overflow:hidden; border-left:2px solid var(--amber); }
+  #respect-fill { height:100%; width:0%; background:linear-gradient(90deg,#c98a35,#ffcf7d); transition:width .3s ease; }
+  #police-panel { position:absolute; left:24px; top:152px; width:340px; padding:11px 17px 12px; background:linear-gradient(100deg,rgba(16,18,20,.9),rgba(16,18,20,.56)); border-left:3px solid var(--danger); clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,0 100%); }
+  #police-panel .eyebrow { color:#ff9d6e; }
+  #police-list { margin-top:7px; display:flex; flex-direction:column; gap:4px; }
+  .police-unit { display:flex; gap:8px; font:10px 'Courier New',monospace; letter-spacing:.4px; color:#e6dac4; }
+  .police-unit b { color:#ffb08a; min-width:62px; font-weight:700; }
+  .police-unit em { font-style:normal; color:#cbbfa9; flex:1; }
+  .police-unit span { color:#9fb0ad; }
+  #player-panel { position:absolute; right:24px; bottom:22px; width:265px; padding:13px 15px; border-right:3px solid var(--turq); clip-path:polygon(16px 0,100% 0,100% 100%,0 100%,0 16px); }
+  #weapon-row { display:flex; align-items:end; justify-content:space-between; margin-bottom:10px; }
+  #weapon-icon { font:38px Impact,'Arial Narrow',sans-serif; color:#d8cab0; border-bottom:2px solid var(--amber); line-height:1.05; min-width:58px; letter-spacing:2px; }
+  #weapon-name { text-align:right; flex:1; font:12px 'Arial Narrow',Arial,sans-serif; letter-spacing:2px; }
+  #ammo { font:24px 'Courier New',monospace; color:#f5ead5; text-align:right; margin-left:9px; white-space:nowrap; }
+  .bar-line { display:flex; align-items:center; gap:8px; height:13px; }
+  .bar-label { width:23px; font:9px monospace; color:#ddd0ba; }
+  .bar-track { height:4px; flex:1; background:#4b4a43; overflow:hidden; }
+  .bar-fill { height:100%; width:100%; transition:width .15s linear; }
+  #health-fill { background:#e7dfcc; }
+  #armour-fill { background:var(--turq); }
+  #stamina-fill { background:#d7a74f; height:2px; }
+  #speedometer { position:absolute; right:305px; bottom:28px; width:186px; text-align:right; padding-right:12px; border-right:1px solid #d6c49b88; }
+  #speed { font:46px 'Courier New',monospace; color:#f1e5cc; line-height:1; }
+  #speed-label { color:var(--amber); letter-spacing:3px; font-size:9px; }
+  #damage-line { margin-top:9px; }
+  #damage-fill { background:#e08a54; }
+  #radio-name { margin-top:7px; font:9px 'Arial Narrow',Arial,sans-serif; letter-spacing:1.6px; color:#cbbfa6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #subtitles { position:absolute; bottom:119px; left:50%; transform:translateX(-50%); max-width:690px; min-width:420px; text-align:center; background:rgba(12,16,17,.84); border-bottom:2px solid #c1954f; padding:9px 21px 11px; clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%,0 10px); }
+  #subtitle-speaker { font-size:10px; font-weight:bold; letter-spacing:2.5px; color:var(--amber); }
+  #subtitle-line { margin-top:4px; font-size:16px; line-height:1.35; color:#fff4df; }
+  #toast-stack { position:absolute; right:25px; top:156px; width:250px; display:flex; flex-direction:column; align-items:flex-end; gap:7px; }
+  .toast { border-right:2px solid var(--amber); background:#11191bdd; padding:8px 12px; text-align:right; min-width:195px; animation:toastin .2s ease-out; }
+  .toast strong { display:block; color:var(--amber); font-size:11px; letter-spacing:1.5px; }
+  .toast span { display:block; margin-top:3px; font-size:11px; color:#eee0c8; }
+  @keyframes toastin { from { transform:translateX(25px); opacity:0; } }
+  #interaction { position:absolute; left:50%; bottom:70px; transform:translateX(-50%); background:#121719e6; border:1px solid #c5af8299; padding:8px 17px; color:#f3e4c9; font-size:12px; letter-spacing:1px; }
+  #crosshair { position:absolute; left:50%; top:50%; width:26px; height:26px; transform:translate(-50%,-50%); }
+  #crosshair:before,#crosshair:after { content:''; position:absolute; background:#f5e7cb; box-shadow:0 0 2px #000; }
+  #crosshair:before { left:12px; top:2px; width:2px; height:22px; clip-path:polygon(0 0,100% 0,100% 35%,0 35%,0 65%,100% 65%,100% 100%,0 100%); }
+  #crosshair:after { top:12px; left:2px; height:2px; width:22px; clip-path:polygon(0 0,35% 0,35% 100%,65% 100%,65% 0,100% 0,100% 100%,0 100%); }
+  #weapon-wheel { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:grid; grid-template-columns:repeat(2,120px); gap:6px; }
+  .wheel-item { padding:15px; background:#12191bef; border-bottom:2px solid #ba9d68; text-align:center; }
+  .wheel-item b { display:block; font:25px Impact,sans-serif; color:var(--amber); }
+  .wheel-item span { font-size:11px; letter-spacing:1px; }
+  #briefing { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:10; width:500px; background:rgba(13,18,19,.94); border-top:3px solid var(--amber); padding:24px 28px; clip-path:polygon(0 0,100% 0,100% calc(100% - 24px),calc(100% - 24px) 100%,0 100%); }
+  #briefing-number { position:absolute; top:25px; right:28px; color:#b8a98e; font:11px monospace; }
+  #briefing-contact { font-size:10px; color:var(--amber); letter-spacing:2.6px; }
+  #briefing-title { margin:9px 0 13px; font:42px Impact,'Arial Narrow',sans-serif; letter-spacing:2px; }
+  #briefing-copy { margin:0; color:#e5d9c5; line-height:1.6; font-size:14px; }
+  .briefing-tip { margin-top:17px; padding-top:12px; border-top:1px solid #9f8d6c55; font-size:10px; letter-spacing:1.5px; color:#b4ab99; }
+  .screen { position:fixed; inset:0; z-index:20; background:linear-gradient(90deg,rgba(8,13,14,.91) 0%,rgba(9,13,14,.62) 35%,rgba(9,13,14,.04) 72%); }
+  #title-details { position:absolute; left:6%; top:12%; width:510px; }
+  #title-overline { display:flex; align-items:center; gap:12px; color:var(--amber); letter-spacing:4px; font-size:11px; }
+  #title-overline:before { content:''; width:46px; height:2px; background:var(--amber); }
+  #logo { margin:20px 0 0; font:126px/.74 Impact,'Arial Narrow',sans-serif; letter-spacing:1px; color:#f2e6cf; text-shadow:5px 7px 0 #14282a; }
+  #logo span { display:block; color:var(--amber); margin-left:96px; letter-spacing:12px; }
+  #title-sub { margin:30px 0 28px; font:17px 'Arial Narrow',Arial,sans-serif; letter-spacing:4px; }
+  #title-menu { width:308px; display:flex; flex-direction:column; gap:7px; }
+  .menu-button { appearance:none; border:0; border-left:2px solid #796e5a; border-radius:0; background:rgba(18,24,25,.78); color:#e9dcc4; padding:12px 20px; text-align:left; font:15px 'Arial Narrow',Arial,sans-serif; font-weight:bold; letter-spacing:3px; cursor:pointer; clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,0 100%); }
+  .menu-button:hover,.menu-button:focus { border-left:5px solid var(--amber); padding-left:23px; background:#d99b3b; color:#11191a; outline:0; }
+  .menu-button:disabled { opacity:.4; cursor:default; }
+  #title-progress { margin-top:18px; font-size:9px; color:#c0b099; letter-spacing:2px; }
+  #title-city-note { position:absolute; right:4%; bottom:5%; padding:12px 18px; text-align:right; border-right:2px solid var(--amber); background:#111719a8; }
+  #title-city-note b { display:block; font:21px Impact,sans-serif; letter-spacing:3px; }
+  #title-city-note span { font-size:10px; letter-spacing:2px; color:#d0bfa3; }
+  #build-label { position:absolute; right:4%; top:5%; font:10px monospace; letter-spacing:2px; color:#ebdbc0; }
+  .centre-panel { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:530px; padding:32px; background:rgba(14,19,20,.95); border-top:3px solid var(--amber); clip-path:polygon(0 0,100% 0,100% calc(100% - 25px),calc(100% - 25px) 100%,0 100%); }
+  .centre-panel h2 { margin:0; font:48px Impact,'Arial Narrow',sans-serif; letter-spacing:2px; }
+  .centre-panel .lead { color:#bfb19a; font-size:12px; letter-spacing:2px; margin:8px 0 23px; }
+  .centre-panel .menu-button { display:block; width:100%; margin-top:7px; }
+  .stat-line { display:flex; justify-content:space-between; border-top:1px solid #8d816855; padding:11px 0; font:12px monospace; color:#dfd1b9; }
+  .controls-grid { display:grid; grid-template-columns:1fr 1fr; column-gap:20px; row-gap:8px; margin:18px 0 24px; font-size:11px; color:#cec2ae; }
+  .controls-grid b { color:var(--amber); font:12px monospace; padding-right:7px; }
+  .option-line { display:grid; grid-template-columns:155px 1fr 55px; gap:10px; align-items:center; margin:21px 0; }
+  .option-line label { font-size:12px; letter-spacing:1px; }
+  .option-line input { accent-color:var(--amber); width:100%; }
+  .option-line output { color:var(--amber); font:12px monospace; }
+  #result-screen,#death-screen { background:rgba(8,13,14,.74); }
+  #result-panel { text-align:center; }
+  #result-kicker { color:var(--amber); letter-spacing:4px; font-size:11px; }
+  #result-title { margin-top:10px; }
+  #result-reward { font:54px 'Courier New',monospace; color:#f4dfb7; margin:12px 0; }
+  #result-copy { color:#c8baa3; line-height:1.5; margin:0 0 22px; }
+  #death-screen { background:radial-gradient(circle,#5b1e1bd9,#130d0deb); }
+  #death-panel { border-color:var(--danger); }
+  #death-panel h2 { color:#f0ddd0; font-size:80px; }
+  #hospital-fee { color:#d5aa94; font:14px monospace; margin:10px 0 25px; }
+  #footer-controls { position:absolute; bottom:25px; left:50%; transform:translateX(-50%); white-space:nowrap; color:#bfb4a2; font-size:9px; letter-spacing:2px; opacity:.8; }
+  @media(max-width:900px) { #logo{font-size:94px} #mission-card{width:280px} #player-panel{width:225px} #speedometer{right:260px} }
 </style>
 </head>
 <body>
-<canvas id="game" aria-label="Block Dodger: move the paddle left and right to dodge falling blocks and catch coins"></canvas>
-<p id="status" role="status" aria-live="polite"></p>
+<canvas id="game" aria-label="CIELO MAR, an original third-person coastal open-world crime game" tabindex="0"></canvas>
+<p id="status" role="status" aria-live="assertive"></p>
+
+<div id="hud" class="hidden">
+  <section id="mission-card" class="angular">
+    <div id="mission-kicker">STORY 01 / 08</div>
+    <div id="mission-title">EL PRIMER VUELO</div>
+    <div id="mission-objective">Steal the Vela GT at the Marina hotel</div>
+    <div id="mission-distance">0 M</div>
+  </section>
+  <section id="wanted-panel">
+    <div id="district-name">MARINA VERDE</div>
+    <div id="cash">$0</div>
+    <div id="wanted-stars" aria-label="Wanted level"></div>
+  </section>
+  <section id="police-panel" class="hidden">
+    <div class="eyebrow">PCM RESPONSE</div>
+    <div id="police-list"></div>
+  </section>
+  <div id="map-wrap"><canvas id="minimap" width="220" height="220" aria-label="Live city minimap"></canvas><span id="map-caption">CIELO MAR</span></div>
+  <div id="respect-wrap">
+    <div id="respect-head"><span>RESPECT</span><b id="respect-rank">UNKNOWN</b></div>
+    <div id="respect-track"><div id="respect-fill"></div></div>
+  </div>
+  <section id="player-panel" class="angular">
+    <div id="weapon-row"><span id="weapon-icon">FST</span><span id="weapon-name">FISTS</span><span id="ammo">—</span></div>
+    <div class="bar-line"><span class="bar-label">HP</span><div class="bar-track"><div id="health-fill" class="bar-fill"></div></div></div>
+    <div class="bar-line"><span class="bar-label">AR</span><div class="bar-track"><div id="armour-fill" class="bar-fill"></div></div></div>
+    <div class="bar-line"><span class="bar-label">ST</span><div class="bar-track"><div id="stamina-fill" class="bar-fill"></div></div></div>
+  </section>
+  <div id="speedometer" class="hidden"><div id="speed">000</div><div id="speed-label">KM / H</div><div class="bar-line" id="damage-line"><span class="bar-label">DMG</span><div class="bar-track"><div id="damage-fill" class="bar-fill"></div></div></div><div id="radio-name">RADIO BRISA — BOLERO</div></div>
+  <div id="subtitles" class="hidden"><div id="subtitle-speaker">RAFA</div><div id="subtitle-line"></div></div>
+  <div id="toast-stack"></div>
+  <div id="interaction" class="hidden"></div>
+  <div id="crosshair" class="hidden"></div>
+  <div id="weapon-wheel" class="hidden"><div class="wheel-item"><b>1</b><span>FISTS</span></div><div class="wheel-item"><b>2</b><span>PISTOLA</span></div><div class="wheel-item"><b>3</b><span>SUBFUSIL</span></div><div class="wheel-item"><b>4</b><span>ESCOPETA</span></div></div>
+</div>
+
+<section id="briefing" class="hidden">
+  <div id="briefing-number">STORY 01 / 08</div>
+  <div id="briefing-contact">TAVO — THE FIRST JOB</div>
+  <h2 id="briefing-title">EL PRIMER VUELO</h2>
+  <p id="briefing-copy"></p>
+  <div class="briefing-tip">FOLLOW THE AMBER BEACON · ESC TO PAUSE</div>
+</section>
+
+<section id="title-screen" class="screen">
+  <div id="title-details">
+    <div id="title-overline">A COASTAL CRIME STORY</div>
+    <h1 id="logo">CIELO<span>MAR</span></h1>
+    <p id="title-sub">A CITY OWES YOU NOTHING.</p>
+    <nav id="title-menu" aria-label="Main menu">
+      <button id="continue-button" class="menu-button" data-action="continue" disabled>CONTINUE</button>
+      <button class="menu-button" data-action="new">NEW GAME</button>
+      <button class="menu-button" data-action="options-title">OPTIONS</button>
+    </nav>
+    <div id="title-progress">8 STORY MISSIONS · 6 DISTRICTS · ONE DEBT TO SETTLE</div>
+  </div>
+  <div id="build-label">RAFA QUINTERO / CIELO MAR</div>
+  <div id="title-city-note"><b>WELCOME HOME</b><span>WARM WATER. COLD ACCOUNTS.</span></div>
+  <div id="footer-controls">WASD MOVE · MOUSE LOOK · F VEHICLE · 1–4 WEAPONS · ESC PAUSE</div>
+</section>
+
+<section id="pause-screen" class="screen hidden">
+  <div class="centre-panel">
+    <div class="eyebrow">THE CITY CAN WAIT</div><h2>PAUSED</h2>
+    <div class="stat-line"><span id="pause-mission">0 / 8 MISSIONS COMPLETE</span><span id="pause-cash">$0</span></div>
+    <button class="menu-button" data-action="resume">RESUME</button>
+    <button class="menu-button" data-action="save-safehouse" id="save-slot-1">SAVE AT SAFEHOUSE</button>
+    <button class="menu-button" data-action="save-slot-2" id="save-slot-2">SLOT 2 — EMPTY</button>
+    <button class="menu-button" data-action="save-slot-3" id="save-slot-3">SLOT 3 — EMPTY</button>
+    <button class="menu-button" data-action="options-pause">OPTIONS & CONTROLS</button>
+    <button class="menu-button" data-action="title">RETURN TO TITLE</button>
+  </div>
+</section>
+
+<section id="options-screen" class="screen hidden">
+  <div class="centre-panel">
+    <div class="eyebrow">TUNE THE CITY</div><h2>OPTIONS</h2>
+    <div class="option-line"><label for="volume">MASTER VOLUME</label><input id="volume" type="range" min="0" max="1" step="0.05" value="0.65"><output id="volume-value">65%</output></div>
+    <div class="option-line"><label for="sensitivity">MOUSE SENSITIVITY</label><input id="sensitivity" type="range" min="0.25" max="1.5" step="0.05" value="0.75"><output id="sensitivity-value">75%</output></div>
+    <div class="controls-grid"><span><b>W A S D</b>Move / drive</span><span><b>SHIFT</b>Sprint</span><span><b>SPACE</b>Jump / handbrake</span><span><b>F</b>Enter / exit car</span><span><b>1–4</b>Select weapon</span><span><b>TAB</b>Weapon wheel</span><span><b>LMB</b>Fire</span><span><b>RMB</b>Aim</span><span><b>R</b>Reload / radio</span><span><b>E</b>Interact / save</span><span><b>C</b>Crouch</span><span><b>ESC</b>Pause</span></div>
+    <button class="menu-button" data-action="close-options">BACK</button>
+  </div>
+</section>
+
+<section id="result-screen" class="screen hidden">
+  <div id="result-panel" class="centre-panel"><div id="result-kicker">MISSION COMPLETE</div><h2 id="result-title">EL PRIMER VUELO</h2><div id="result-reward">+$450</div><p id="result-copy"></p><button id="result-continue" class="menu-button" data-action="result-continue">CONTINUE</button></div>
+</section>
+
+<section id="death-screen" class="screen hidden">
+  <div id="death-panel" class="centre-panel"><div class="eyebrow">THE COAST TAKES ITS CUT</div><h2>WASTED</h2><div id="hospital-fee">HOSPITAL FEE −$200</div><button class="menu-button" data-action="respawn">WAKE UP AT THE SAFEHOUSE</button></div>
+</section>
+
+<script>
+  window.addEventListener('error', function (event) { var message = event.message || 'Unknown error'; document.title = 'ERR ' + message; document.getElementById('status').textContent = message; });
+  window.addEventListener('unhandledrejection', function (event) { var message = String(event.reason && event.reason.message || event.reason); document.title = 'ERR ' + message; document.getElementById('status').textContent = message; });
+</script>
+<script src="./vendor/three.min.js"></script>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

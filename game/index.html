@@ -3,17 +3,192 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block Dodger</title>
+<title>CIELO MAR</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #11141b; }
-  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Read aloud, never shown: the status line screen readers announce. */
+  :root {
+    --gold: #f3b15a;
+    --amber: #ffb347;
+    --turq: #35d0c0;
+    --danger: #e4572e;
+    --ink: rgba(16,18,20,0.82);
+    --ink2: rgba(12,14,16,0.62);
+    --line: rgba(255,255,255,0.16);
+    --cream: #f4e8d2;
+    --head: 'Oswald', 'Impact', 'Arial Narrow', 'Franklin Gothic Medium', sans-serif;
+    --mono: 'SFMono-Regular', 'Consolas', 'Menlo', 'Liberation Mono', monospace;
+    --body: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0c0e10; color: var(--cream); font-family: var(--body); }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
+  body.playing { cursor: none; }
+  .hidden { display: none !important; }
+  .panel {
+    background: var(--ink);
+    border: 1px solid var(--line);
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    padding: 10px 14px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  }
+  .h { font-family: var(--head); text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600; }
+
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #mission-card { position: absolute; top: 18px; left: 18px; min-width: 270px; max-width: 380px; }
+  #mission-card .mjob { font-family: var(--mono); color: var(--gold); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; }
+  #mission-card .mtitle { font-family: var(--head); text-transform: uppercase; letter-spacing: 0.08em; font-size: 17px; color: #fff; margin: 3px 0 6px; }
+  #mission-card .mobj { font-size: 13px; color: var(--cream); }
+  #mission-card .mdist { font-family: var(--mono); color: var(--turq); font-size: 12px; margin-top: 4px; }
+  #mission-card.brief .mobj { color: var(--gold); }
+
+  #top-right { position: absolute; top: 18px; right: 18px; text-align: right; min-width: 200px; }
+  #cash { font-family: var(--mono); font-size: 26px; color: #d8f5cf; letter-spacing: 0.04em; font-weight: 700; line-height: 1; }
+  #cash .c { color: #8fbf7c; font-size: 18px; margin-right: 2px; }
+  #stars { display: flex; gap: 3px; justify-content: flex-end; margin-top: 8px; height: 22px; }
+  #stars .star { width: 20px; height: 20px; background: rgba(255,255,255,0.12); clip-path: polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%); }
+  #stars .star.on { background: var(--danger); }
+  #stars.flash .star.on { animation: sflash 0.4s infinite alternate; }
+  @keyframes sflash { from { opacity: 1; } to { opacity: 0.25; } }
+  #respect-wrap { margin-top: 8px; }
+  #respect-wrap .rl { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 9px; letter-spacing: 0.15em; color: #c9bfae; text-transform: uppercase; }
+  #respect-bar { height: 5px; background: rgba(255,255,255,0.12); margin-top: 3px; }
+  #respect-fill { height: 100%; background: linear-gradient(90deg, var(--amber), var(--gold)); width: 0%; transition: width 0.4s; }
+
+  #police-panel { position: absolute; top: 170px; right: 18px; width: 236px; font-size: 11px; }
+  #police-panel .ph { display: flex; justify-content: space-between; align-items: center; color: var(--danger); font-size: 10px; letter-spacing: 0.2em; }
+  #police-panel .ph .lv { font-family: var(--mono); background: var(--danger); color: #120a08; padding: 1px 5px; font-weight: 700; }
+  #police-list { margin: 6px 0 0; padding: 0; list-style: none; }
+  #police-list li { display: grid; grid-template-columns: 62px 1fr auto; gap: 4px; font-family: var(--mono); font-size: 10.5px; padding: 2px 0; border-top: 1px solid rgba(255,255,255,0.06); color: #d9d2c6; }
+  #police-list li .cs { color: var(--turq); }
+  #police-list li .ds { color: #a49b8c; }
+  #police-list li.air .cs { color: var(--amber); }
+
+  #bottom-left { position: absolute; left: 18px; bottom: 18px; display: flex; align-items: flex-end; gap: 14px; }
+  #minimap-wrap { position: relative; width: 180px; height: 180px; }
+  #minimap { width: 180px; height: 180px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.25); background: #122025; display: block; }
+  #minimap-n { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); font-family: var(--mono); font-size: 10px; color: #fff; background: rgba(0,0,0,0.6); padding: 0 5px; letter-spacing: 0.1em; }
+  #vitals { min-width: 190px; }
+  .bar-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .bar-row .bl { font-family: var(--head); font-size: 10px; letter-spacing: 0.16em; width: 22px; color: #c9bfae; }
+  .bar { flex: 1; height: 9px; background: rgba(0,0,0,0.55); border: 1px solid var(--line); position: relative; overflow: hidden; }
+  .bar .fill { position: absolute; inset: 0; transform-origin: left; }
+  #hp-fill { background: linear-gradient(90deg, #5fae4a, #9be06f); }
+  #ar-fill { background: linear-gradient(90deg, #3a8fb8, #7fd3ea); }
+  #st-fill { background: linear-gradient(90deg, #b08a3a, #f3c95a); }
+  #weapon-block { margin-top: 6px; display: flex; align-items: center; gap: 10px; }
+  #weapon-icon { width: 54px; height: 30px; }
+  #weapon-name { font-family: var(--head); text-transform: uppercase; letter-spacing: 0.1em; font-size: 12px; color: #fff; }
+  #ammo { font-family: var(--mono); font-size: 22px; color: #fff; line-height: 1; }
+  #ammo .res { font-size: 13px; color: #a49b8c; }
+  #vehicle-block { margin-top: 6px; }
+  #speedo { display: flex; align-items: baseline; gap: 4px; font-family: var(--mono); }
+  #speed-val { font-size: 26px; color: #fff; font-weight: 700; }
+  #speedo small { font-size: 10px; color: #a49b8c; letter-spacing: 0.15em; }
+  #veh-damage { height: 4px; background: rgba(255,255,255,0.12); margin-top: 3px; }
+  #veh-damage .fill { height: 100%; background: var(--danger); width: 0%; }
+  #radio { font-family: var(--mono); font-size: 10px; color: var(--turq); letter-spacing: 0.1em; margin-top: 4px; }
+
+  #subs { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); max-width: 760px; text-align: center; }
+  #subs .who { font-family: var(--head); text-transform: uppercase; letter-spacing: 0.18em; color: var(--amber); font-size: 13px; }
+  #subs .line { font-size: 17px; color: #fbf5e8; text-shadow: 0 2px 6px #000, 0 0 2px #000; }
+  #toasts { position: absolute; right: 18px; bottom: 210px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+  .toast { font-family: var(--mono); font-size: 12px; padding: 6px 12px; background: var(--ink); border-left: 3px solid var(--amber); letter-spacing: 0.06em; animation: tin 0.25s ease-out; }
+  .toast.big { font-size: 15px; border-left-color: var(--turq); }
+  @keyframes tin { from { transform: translateX(30px); opacity: 0; } }
+  #reticle { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; }
+  #reticle::before, #reticle::after { content: ''; position: absolute; background: rgba(255,255,255,0.85); }
+  #reticle::before { left: 12px; top: 2px; width: 2px; height: 22px; }
+  #reticle::after { top: 12px; left: 2px; height: 2px; width: 22px; }
+  #wheel { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 300px; height: 300px; pointer-events: none; }
+  #wheel .slot { position: absolute; width: 120px; padding: 6px; text-align: center; font-family: var(--mono); font-size: 11px; background: var(--ink); border: 1px solid var(--line); }
+  #wheel .slot.sel { border-color: var(--amber); background: rgba(255,179,71,0.2); }
+  #hurt { position: fixed; inset: 0; pointer-events: none; z-index: 4; box-shadow: inset 0 0 140px rgba(160,20,10,0.0); transition: box-shadow 0.25s; }
+  #hurt.on { box-shadow: inset 0 0 140px rgba(170,20,10,0.75); }
+
+  /* ---------- menu screens ---------- */
+  #screen { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; }
+  #screen.dim { background: radial-gradient(ellipse at center, rgba(8,10,12,0.35), rgba(8,10,12,0.85)); }
+  .menu { width: 520px; padding: 34px 40px; }
+  .logo { font-family: var(--head); font-size: 64px; letter-spacing: 0.12em; line-height: 0.9; color: #fff; text-transform: uppercase; text-shadow: 0 4px 24px rgba(0,0,0,0.7); }
+  .logo span { display: block; color: var(--amber); font-size: 30px; letter-spacing: 0.5em; margin-top: 6px; }
+  .tag { font-family: var(--mono); font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase; color: #d9cbb0; margin: 16px 0 26px; }
+  .menu-item { display: flex; align-items: baseline; gap: 16px; padding: 11px 4px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .menu-item .n { font-family: var(--mono); font-size: 12px; color: var(--amber); width: 26px; }
+  .menu-item .t { font-family: var(--head); text-transform: uppercase; letter-spacing: 0.16em; font-size: 19px; color: #efe4d0; }
+  .menu-item.sel .t { color: #fff; padding-left: 8px; border-left: 3px solid var(--amber); }
+  .menu-item.sel { background: linear-gradient(90deg, rgba(255,179,71,0.12), transparent); }
+  .menu-note { font-family: var(--mono); font-size: 11px; color: #9fb4b0; margin-top: 22px; line-height: 1.7; letter-spacing: 0.04em; }
+  .menu-foot { margin-top: 16px; font-family: var(--mono); font-size: 10px; color: #8a8174; letter-spacing: 0.12em; }
+  .bigcard { width: 560px; text-align: center; padding: 40px; }
+  .bigcard .kicker { font-family: var(--mono); font-size: 12px; letter-spacing: 0.3em; color: var(--amber); text-transform: uppercase; }
+  .bigcard h1 { font-family: var(--head); font-size: 70px; letter-spacing: 0.16em; margin: 8px 0; }
+  .bigcard .sub { color: #d9cbb0; font-size: 15px; margin-bottom: 26px; }
+  .btn { pointer-events: auto; display: inline-block; font-family: var(--head); text-transform: uppercase; letter-spacing: 0.16em; padding: 10px 26px; border: 1px solid var(--line); background: var(--ink); color: #fff; cursor: pointer; margin: 4px; font-size: 14px; }
+  .btn.sel, .btn:hover { border-color: var(--amber); color: var(--amber); }
+  .slots { text-align: left; pointer-events: auto; }
+  .slot-row { display: flex; justify-content: space-between; padding: 10px 6px; border-bottom: 1px solid rgba(255,255,255,0.08); cursor: pointer; font-family: var(--mono); font-size: 12px; }
+  .slot-row.sel { background: rgba(255,179,71,0.12); color: #fff; }
+  .slot-row .sl { color: var(--amber); }
+  .opt { pointer-events: auto; display: flex; justify-content: space-between; padding: 9px 6px; border-bottom: 1px solid rgba(255,255,255,0.08); font-family: var(--mono); font-size: 12px; cursor: pointer; }
+  .opt.sel { background: rgba(255,179,71,0.12); }
+  .opt .val { color: var(--turq); }
   #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  #boot { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; background: #0c0e10; font-family: var(--head); letter-spacing: 0.4em; color: var(--amber); font-size: 22px; }
 </style>
 </head>
 <body>
-<canvas id="game" aria-label="Block Dodger: move the paddle left and right to dodge falling blocks and catch coins"></canvas>
+<canvas id="game" aria-label="CIELO MAR, an open-world crime game"></canvas>
+<div id="hurt"></div>
+<div id="hud" class="hidden">
+  <div id="mission-card" class="panel">
+    <div class="mjob" id="m-job">JOB 01</div>
+    <div class="mtitle" id="m-title">CIELO MAR</div>
+    <div class="mobj" id="m-obj">Explore the city</div>
+    <div class="mdist" id="m-dist">-- m</div>
+  </div>
+  <div id="top-right">
+    <div class="panel" style="padding:8px 14px">
+      <div id="cash"><span class="c">$</span><span id="cash-val">0</span></div>
+      <div id="stars"></div>
+      <div id="respect-wrap">
+        <div class="rl"><span id="rank">NOVATO</span><span id="respect-num">0</span></div>
+        <div id="respect-bar"><div id="respect-fill"></div></div>
+      </div>
+    </div>
+  </div>
+  <div id="police-panel" class="panel hidden">
+    <div class="ph"><span>PCM RESPONSE</span><span class="lv" id="police-level">L0</span></div>
+    <ul id="police-list"></ul>
+  </div>
+  <div id="bottom-left">
+    <div id="minimap-wrap">
+      <canvas id="minimap" width="180" height="180"></canvas>
+      <div id="minimap-n">N</div>
+    </div>
+    <div id="vitals" class="panel">
+      <div class="bar-row"><span class="bl">HP</span><div class="bar"><div class="fill" id="hp-fill"></div></div></div>
+      <div class="bar-row"><span class="bl">AR</span><div class="bar"><div class="fill" id="ar-fill"></div></div></div>
+      <div class="bar-row"><span class="bl">ST</span><div class="bar"><div class="fill" id="st-fill"></div></div></div>
+      <div id="weapon-block">
+        <canvas id="weapon-icon" width="54" height="30"></canvas>
+        <div><div id="weapon-name">FISTS</div><div id="ammo"><span id="ammo-clip">--</span><span class="res" id="ammo-res"></span></div></div>
+      </div>
+      <div id="vehicle-block" class="hidden">
+        <div id="speedo"><span id="speed-val">0</span><small>KM/H</small></div>
+        <div id="veh-damage"><div class="fill"></div></div>
+        <div id="radio">RADIO COSTA</div>
+      </div>
+    </div>
+  </div>
+  <div id="subs" class="hidden"><div class="who" id="sub-who"></div><div class="line" id="sub-line"></div></div>
+  <div id="toasts"></div>
+  <div id="reticle" class="hidden"></div>
+  <div id="wheel" class="hidden"></div>
+</div>
+<div id="screen" class="hidden"></div>
+<div id="boot">CIELO MAR</div>
 <p id="status" role="status" aria-live="polite"></p>
+<script src="./vendor/three.min.js"></script>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>
